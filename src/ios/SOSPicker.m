@@ -36,6 +36,7 @@ typedef enum : NSUInteger {
     // this method works only when it is a first time, see
     // https://developer.apple.com/library/ios/documentation/Photos/Reference/PHPhotoLibrary_Class/
 
+    __weak SOSPicker* weakSelf = self;
     PHAuthorizationStatus status = [PHPhotoLibrary authorizationStatus];
     if (status == PHAuthorizationStatusAuthorized) {
         NSLog(@"Access has been granted.");
@@ -43,10 +44,22 @@ typedef enum : NSUInteger {
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     } else if (status == PHAuthorizationStatusDenied) {
-        NSString* message = @"Access has been denied. Change your setting > this app > Photo enable";
-        NSLog(@"%@", message);
+        NSString* messagePopin = NSLocalizedString(@"Access to the picker file has been prohibited; please enable it in the Settings app to continue.", nil);
+        NSString* settingsButton = (&UIApplicationOpenSettingsURLString != NULL)
+        ? NSLocalizedString(@"Settings", nil)
+        : nil;
         
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:message];
+        // Denied; show an alert
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [[[UIAlertView alloc] initWithTitle:[[NSBundle mainBundle]
+                                                 objectForInfoDictionaryKey:@"CFBundleDisplayName"]
+                                        message:messagePopin
+                                       delegate:weakSelf
+                              cancelButtonTitle:NSLocalizedString(@"OK", nil)
+                              otherButtonTitles:settingsButton, nil] show];
+        });
+        
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:messagePopin];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     } else if (status == PHAuthorizationStatusNotDetermined) {
         // Access has not been determined. requestAuthorization: is available
@@ -60,6 +73,15 @@ typedef enum : NSUInteger {
         
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:message];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }
+}
+
+- (void)alertView:(UIAlertView *)alertView didDismissWithButtonIndex:(NSInteger)buttonIndex {
+    // the user clicked OK
+    if (buttonIndex == 1) {
+        if (&UIApplicationOpenSettingsURLString != NULL) {
+            [[UIApplication sharedApplication] openURL:[NSURL URLWithString:UIApplicationOpenSettingsURLString]];
+        }
     }
 }
 
