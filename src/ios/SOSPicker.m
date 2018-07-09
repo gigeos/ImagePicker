@@ -62,11 +62,13 @@ typedef enum : NSUInteger {
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString:messagePopin];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     } else if (status == PHAuthorizationStatusNotDetermined) {
-        // Access has not been determined. requestAuthorization: is available
-        [PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus status) {}];
-        
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+        [PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus status) {
+            CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR];
+            if (status == PHAuthorizationStatusAuthorized) {
+                pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+            }
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+        }];
     } else if (status == PHAuthorizationStatusRestricted) {
         NSString* message = @"Access has been restricted. Change your setting > Privacy > Photo enable";
         NSLog(@"%@", message);
